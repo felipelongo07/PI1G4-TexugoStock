@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+
+{% block title %}Recebimento de Mercadorias e Lotes{% endblock %}
+{% block header_title %}Recebimento de Mercadorias (RF02, RF03){% endblock %}
+{% block header_subtitle %}Entrada de estoque com lote, fornecedor e data de validade{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-6">
+
+    <!-- Card Principal de Formulário -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 sm:p-8">
+        
+        <div class="flex items-center justify-between pb-4 mb-6 border-b border-slate-100">
+            <div>
+                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-dolly text-emerald-600"></i>
+                    <span>Registro de Entrada de Lote</span>
+                </h3>
+                <p class="text-xs text-slate-500 mt-0.5">Etapa 4 do fluxo: Informar quantidade recebida, lote e data de validade.</p>
+            </div>
+            <a href="{{ url_for('main.novo_produto') }}" class="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold rounded-lg transition border border-amber-200 flex items-center gap-1.5">
+                <i class="fa-solid fa-plus"></i> Produto Não Cadastrado?
+            </a>
+        </div>
+
+        <form method="POST" action="{{ url_for('main.entrada_lote') }}" class="space-y-6" id="form-entrada">
+
+            <!-- Seleção do Produto -->
+            <div>
+                <label for="produto_id" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                    Selecione o Produto <span class="text-rose-500">*</span>
+                </label>
+                <select id="produto_id" name="produto_id" required
+                        class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition">
+                    <option value="">-- Escolha um produto da lista --</option>
+                    {% for p in produtos %}
+                        <option value="{{ p.id }}" {% if produto_id_selecionado and produto_id_selecionado|int == p.id %}selected{% endif %}>
+                            {{ p.nome }} [{{ p.categoria }}] &bull; Saldo atual: {{ p.estoque_atual }} {{ p.unidade_medida }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <div class="flex justify-between items-center text-[11px] text-slate-400 mt-1">
+                    <span>O estoque atual do produto será somado automaticamente ao final (RF03).</span>
+                    <a href="{{ url_for('main.novo_produto') }}" class="text-amber-600 hover:underline font-semibold">+ Cadastrar Novo Produto</a>
+                </div>
+            </div>
+
+            <!-- Lote e Quantidade -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="numero_lote" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                        Número / Código do Lote <span class="text-rose-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                            <i class="fa-solid fa-layer-group"></i>
+                        </span>
+                        <input type="text" id="numero_lote" name="numero_lote" required
+                               placeholder="Ex: LT-2026-A1, LOTE-9942..."
+                               class="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition">
+                    </div>
+                </div>
+
+                <div>
+                    <label for="quantidade" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                        Quantidade Recebida <span class="text-rose-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                            <i class="fa-solid fa-cubes-stacked"></i>
+                        </span>
+                        <input type="number" min="1" id="quantidade" name="quantidade" required
+                               placeholder="Ex: 50"
+                               class="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data de Validade e Fornecedor -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="data_validade" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                        Data de Validade (RF02, RF07) <span class="text-rose-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                            <i class="fa-solid fa-calendar-day"></i>
+                        </span>
+                        <input type="date" id="data_validade" name="data_validade" required
+                               onchange="verificarValidadeEntrada(this.value)"
+                               class="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition">
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label for="fornecedor" class="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                            Fornecedor / Distribuidora
+                        </label>
+                        <a href="{{ url_for('main.fornecedores') }}" target="_blank" class="text-[10px] text-amber-600 hover:underline font-semibold">
+                            + Gerenciar Fornecedores
+                        </a>
+                    </div>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                            <i class="fa-solid fa-truck-field"></i>
+                        </span>
+                        <input type="text" id="fornecedor" name="fornecedor" list="lista-fornecedores"
+                               placeholder="Selecione ou digite o nome do fornecedor..."
+                               class="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition">
+                        <datalist id="lista-fornecedores">
+                            {% for f in fornecedores %}
+                                <option value="{{ f.nome_fantasia }}">CNPJ: {{ f.cnpj if f.cnpj else 'S/N' }} - {{ f.razao_social }}</option>
+                            {% endfor %}
+                        </datalist>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alerta Dinâmico de Triagem de Validade (Conforme Fluxo da FATEC) -->
+            <div id="alerta-validade-dinamico" class="hidden p-4 rounded-xl border transition-all">
+                <div class="flex items-start gap-3">
+                    <i id="alerta-icone" class="fa-solid fa-triangle-exclamation text-lg mt-0.5"></i>
+                    <div>
+                        <h4 id="alerta-titulo" class="text-sm font-bold"></h4>
+                        <p id="alerta-desc" class="text-xs mt-0.5"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Observações / Número da Nota Fiscal -->
+            <div>
+                <label for="observacoes" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                    Observações / Nota Fiscal de Entrada
+                </label>
+                <textarea id="observacoes" name="observacoes" rows="2"
+                          placeholder="Ex: Nota fiscal nº 44102. Mercadoria conferida na doca sem avarias."
+                          class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition"></textarea>
+            </div>
+
+            <!-- Botões de Ação -->
+            <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+                <a href="{{ url_for('main.produtos') }}" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-xl transition">
+                    Cancelar
+                </a>
+                <button type="submit" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-md shadow-emerald-600/20 transition flex items-center gap-2">
+                    <i class="fa-solid fa-plus-circle"></i>
+                    <span>Confirmar Entrada no Estoque (RF03)</span>
+                </button>
+            </div>
+
+        </form>
+
+    </div>
+
+    <!-- BOX DIDÁTICO: FLUXO DE RECEBIMENTO (FATEC ADS) -->
+    <div class="bg-slate-900 text-slate-200 p-5 rounded-2xl border border-slate-800 shadow-sm text-xs">
+        <h4 class="font-bold text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+            <i class="fa-solid fa-circle-info"></i> Validação Conforme Diagrama do Projeto
+        </h4>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-[11px] text-slate-300">
+            <div class="p-2.5 bg-slate-800/60 rounded-lg border border-slate-700/50">
+                <span class="font-bold text-white block">1. Validade Segura</span>
+                Produtos com validade normal são liberados imediatamente para venda.
+            </div>
+            <div class="p-2.5 bg-slate-800/60 rounded-lg border border-slate-700/50">
+                <span class="font-bold text-amber-400 block">2. Próximo do Vencimento</span>
+                O sistema emite aviso preventivo para priorizar a saída ou criar promoção.
+            </div>
+            <div class="p-2.5 bg-slate-800/60 rounded-lg border border-slate-700/50">
+                <span class="font-bold text-rose-400 block">3. Lote Vencido</span>
+                Sinaliza para devolução ao fornecedor, reposição ou descarte.
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function verificarValidadeEntrada(dataStr) {
+        if (!dataStr) return;
+        
+        const dataValidade = new Date(dataStr + 'T00:00:00');
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+
+        const diffTempo = dataValidade - hoje;
+        const diffDias = Math.ceil(diffTempo / (1000 * 60 * 60 * 24));
+
+        const box = document.getElementById('alerta-validade-dinamico');
+        const icone = document.getElementById('alerta-icone');
+        const titulo = document.getElementById('alerta-titulo');
+        const desc = document.getElementById('alerta-desc');
+
+        box.classList.remove('hidden', 'bg-rose-50', 'border-rose-300', 'text-rose-800', 
+                             'bg-amber-50', 'border-amber-300', 'text-amber-800', 
+                             'bg-emerald-50', 'border-emerald-300', 'text-emerald-800');
+
+        if (diffDias < 0) {
+            // Vencido
+            box.classList.add('bg-rose-50', 'border-rose-300', 'text-rose-800');
+            icone.className = 'fa-solid fa-ban text-rose-600 text-lg mt-0.5';
+            titulo.textContent = 'Atenção: Data no passado (Lote já vencido!)';
+            desc.textContent = `Esta mercadoria venceu há ${Math.abs(diffDias)} dias. Conforme o fluxo do projeto, deve ser separada para devolução ou descarte.`;
+        } else if (diffDias <= 15) {
+            // Próximo do vencimento
+            box.classList.add('bg-amber-50', 'border-amber-300', 'text-amber-800');
+            icone.className = 'fa-solid fa-triangle-exclamation text-amber-600 text-lg mt-0.5';
+            titulo.textContent = `Atenção: Vencimento próximo (${diffDias} dias restantes)`;
+            desc.textContent = 'Este produto vencerá em menos de 15 dias. O sistema priorizará sua venda pelo algoritmo FEFO.';
+        } else {
+            // Normal
+            box.classList.add('bg-emerald-50', 'border-emerald-300', 'text-emerald-800');
+            icone.className = 'fa-solid fa-circle-check text-emerald-600 text-lg mt-0.5';
+            titulo.textContent = `Validade Excelente (+${diffDias} dias de prazo)`;
+            desc.textContent = 'Produto com prazo de validade seguro para comercialização.';
+        }
+    }
+
+    // Se já houver valor no campo, executa na carga da página
+    window.addEventListener('DOMContentLoaded', () => {
+        const inputData = document.getElementById('data_validade');
+        if (inputData && inputData.value) {
+            verificarValidadeEntrada(inputData.value);
+        }
+    });
+</script>
+{% endblock %}
+

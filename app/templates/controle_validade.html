@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+
+{% block title %}Controle de Validade & Lotes{% endblock %}
+{% block header_title %}Controle de Validade & Lotes (RF07){% endblock %}
+{% block header_subtitle %}Prevenção ativa de perdas financeiras por produtos vencidos ou próximos do vencimento{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- CARDS DE RESUMO DE VALIDADE (KPIs) -->
+    {% set total_vencidos = lotes | selectattr('status_validade', 'equalto', 'VENCIDO') | list %}
+    {% set total_proximos = lotes | selectattr('status_validade', 'equalto', 'PROXIMO') | list %}
+    {% set total_ok = lotes | selectattr('status_validade', 'equalto', 'OK') | list %}
+
+    {% set unidades_vencidas = total_vencidos | map(attribute='quantidade_atual') | sum %}
+    {% set unidades_proximas = total_proximos | map(attribute='quantidade_atual') | sum %}
+    {% set unidades_ok = total_ok | map(attribute='quantidade_atual') | sum %}
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <!-- Card Vencidos -->
+        <a href="{{ url_for('main.controle_validade', status='VENCIDO') }}" 
+           class="p-5 bg-white rounded-2xl border transition-all hover:shadow-md {% if status_filtro == 'VENCIDO' %}border-rose-500 ring-2 ring-rose-500/20{% else %}border-rose-200/80{% endif %}">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-rose-700">⛔ Produtos Vencidos</span>
+                <span class="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center text-rose-600 text-sm">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </span>
+            </div>
+            <div class="mt-3 flex items-baseline justify-between">
+                <span class="text-3xl font-black text-rose-600">{{ total_vencidos | length }}</span>
+                <span class="text-xs font-bold text-rose-700">{{ unidades_vencidas }} un. paradas</span>
+            </div>
+            <div class="mt-2 text-[11px] text-rose-600 font-semibold">
+                Requerem separação para descarte ou devolução
+            </div>
+        </a>
+
+        <!-- Card Próximos do Vencimento -->
+        <a href="{{ url_for('main.controle_validade', status='PROXIMO') }}" 
+           class="p-5 bg-white rounded-2xl border transition-all hover:shadow-md {% if status_filtro == 'PROXIMO' %}border-amber-500 ring-2 ring-amber-500/20{% else %}border-amber-200/80{% endif %}">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-amber-700">⏳ Próximos do Vencimento</span>
+                <span class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600 text-sm">
+                    <i class="fa-solid fa-clock"></i>
+                </span>
+            </div>
+            <div class="mt-3 flex items-baseline justify-between">
+                <span class="text-3xl font-black text-amber-600">{{ total_proximos | length }}</span>
+                <span class="text-xs font-bold text-amber-700">{{ unidades_proximas }} un. em alerta</span>
+            </div>
+            <div class="mt-2 text-[11px] text-amber-600 font-semibold">
+                Priorizar saída imediata (regra FEFO ou promoção)
+            </div>
+        </a>
+
+        <!-- Card Validade Normal / Segura -->
+        <a href="{{ url_for('main.controle_validade', status='OK') }}" 
+           class="p-5 bg-white rounded-2xl border transition-all hover:shadow-md {% if status_filtro == 'OK' %}border-emerald-500 ring-2 ring-emerald-500/20{% else %}border-emerald-200/80{% endif %}">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-emerald-700">✔ Validade Segura</span>
+                <span class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600 text-sm">
+                    <i class="fa-solid fa-shield-check"></i>
+                </span>
+            </div>
+            <div class="mt-3 flex items-baseline justify-between">
+                <span class="text-3xl font-black text-emerald-600">{{ total_ok | length }}</span>
+                <span class="text-xs font-bold text-emerald-700">{{ unidades_ok }} un. regulares</span>
+            </div>
+            <div class="mt-2 text-[11px] text-emerald-600 font-semibold">
+                Prazo confortável de comercialização
+            </div>
+        </a>
+    </div>
+
+    <!-- TABELA E FILTROS -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        
+        <!-- Cabeçalho com Filtros de Abas -->
+        <div class="p-4 border-b border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+                <h3 class="font-bold text-slate-800">Monitoramento Geral de Lotes</h3>
+                <span class="px-2.5 py-0.5 bg-slate-100 text-slate-700 text-xs font-bold rounded-full">
+                    {{ lotes | length }} lote(s)
+                </span>
+            </div>
+
+            <div class="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl text-xs font-semibold">
+                <a href="{{ url_for('main.controle_validade', status='TODOS') }}" 
+                   class="px-3 py-1.5 rounded-lg transition {% if status_filtro == 'TODOS' %}bg-white text-slate-900 shadow-sm font-bold{% else %}text-slate-500 hover:text-slate-900{% endif %}">
+                    Todos
+                </a>
+                <a href="{{ url_for('main.controle_validade', status='VENCIDO') }}" 
+                   class="px-3 py-1.5 rounded-lg transition {% if status_filtro == 'VENCIDO' %}bg-rose-600 text-white shadow-sm font-bold{% else %}text-slate-500 hover:text-rose-600{% endif %}">
+                    Vencidos ({{ total_vencidos | length }})
+                </a>
+                <a href="{{ url_for('main.controle_validade', status='PROXIMO') }}" 
+                   class="px-3 py-1.5 rounded-lg transition {% if status_filtro == 'PROXIMO' %}bg-amber-500 text-slate-950 shadow-sm font-bold{% else %}text-slate-500 hover:text-amber-700{% endif %}">
+                    A Vencer ({{ total_proximos | length }})
+                </a>
+                <a href="{{ url_for('main.controle_validade', status='OK') }}" 
+                   class="px-3 py-1.5 rounded-lg transition {% if status_filtro == 'OK' %}bg-emerald-600 text-white shadow-sm font-bold{% else %}text-slate-500 hover:text-emerald-700{% endif %}">
+                    Normais ({{ total_ok | length }})
+                </a>
+            </div>
+        </div>
+
+        <!-- Tabela -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-600">
+                <thead class="bg-slate-50/75 border-b border-slate-100 text-[11px] uppercase font-bold text-slate-500 tracking-wider">
+                    <tr>
+                        <th class="py-3.5 px-4">Produto & Lote</th>
+                        <th class="py-3.5 px-4">Data de Validade (RF07)</th>
+                        <th class="py-3.5 px-4 text-center">Status & Contagem</th>
+                        <th class="py-3.5 px-4 text-center">Saldo em Estoque</th>
+                        <th class="py-3.5 px-4">Fornecedor</th>
+                        <th class="py-3.5 px-4 text-center">Ação Recomendada</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 font-medium">
+                    {% for l in lotes %}
+                    <tr class="hover:bg-slate-50/60 transition {% if l.status_validade == 'VENCIDO' %}bg-rose-50/40{% elif l.status_validade == 'PROXIMO' %}bg-amber-50/30{% endif %}">
+                        
+                        <!-- Produto e Lote -->
+                        <td class="py-3.5 px-4">
+                            <a href="{{ url_for('main.produto_detalhe', id=l.produto_id) }}" class="font-bold text-slate-900 hover:text-amber-600 transition block">
+                                {{ l.produto_nome }}
+                            </a>
+                            <div class="text-[11px] text-slate-400 font-mono mt-0.5">
+                                Lote: <span class="font-bold text-slate-700">{{ l.numero_lote }}</span> &bull; {{ l.categoria }}
+                            </div>
+                        </td>
+
+                        <!-- Data de Validade -->
+                        <td class="py-3.5 px-4">
+                            <span class="font-bold text-slate-900 text-sm">{{ l.data_validade | data_br }}</span>
+                            <div class="text-[11px] text-slate-400">Entrada: {{ l.data_recebimento | data_br }}</div>
+                        </td>
+
+                        <!-- Status e Contagem -->
+                        <td class="py-3.5 px-4 text-center">
+                            {% if l.status_validade == 'VENCIDO' %}
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-100 text-rose-800 text-xs font-bold rounded-lg border border-rose-200">
+                                    <i class="fa-solid fa-circle-xmark text-rose-600"></i> Vencido há {{ l.dias_restantes | abs }} dia(s)
+                                </span>
+                            {% elif l.status_validade == 'PROXIMO' %}
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-900 text-xs font-bold rounded-lg border border-amber-200">
+                                    <i class="fa-solid fa-clock text-amber-600"></i> Restam {{ l.dias_restantes }} dia(s)
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-800 text-xs font-semibold rounded-lg">
+                                    <i class="fa-solid fa-circle-check text-emerald-600"></i> Vence em {{ l.dias_restantes }} dias
+                                </span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Saldo Atual -->
+                        <td class="py-3.5 px-4 text-center">
+                            <span class="text-base font-black text-slate-900">{{ l.quantidade_atual }}</span>
+                            <span class="text-xs text-slate-400 uppercase">{{ l.unidade_medida }}</span>
+                        </td>
+
+                        <!-- Fornecedor -->
+                        <td class="py-3.5 px-4 text-xs text-slate-500">
+                            {{ l.fornecedor if l.fornecedor else 'Não informado' }}
+                        </td>
+
+                        <!-- Ações Recomendadas -->
+                        <td class="py-3.5 px-4 text-center">
+                            {% if l.status_validade == 'VENCIDO' %}
+                                <form method="POST" action="{{ url_for('main.descarte_lote_rota', id=l.id) }}"
+                                      onsubmit="return confirm('ATENÇÃO: Confirmar a baixa por DESCARTE VENCIDO do lote {{ l.numero_lote }}? Esta ação removerá as unidades vencidas do estoque.');">
+                                    <button type="submit" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg shadow-sm transition flex items-center gap-1.5 mx-auto">
+                                        <i class="fa-solid fa-ban"></i> Descartar / Baixar
+                                    </button>
+                                </form>
+                            {% elif l.status_validade == 'PROXIMO' %}
+                                <a href="{{ url_for('main.saida_venda', produto_id=l.produto_id) }}" 
+                                   class="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold rounded-lg shadow-sm transition">
+                                    <i class="fa-solid fa-fire"></i> Vender (FEFO)
+                                </a>
+                            {% else %}
+                                <span class="text-xs text-emerald-600 font-semibold flex items-center justify-center gap-1">
+                                    <i class="fa-solid fa-check"></i> Seguro
+                                </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="py-12 text-center text-slate-400">
+                            <i class="fa-solid fa-calendar-check text-4xl mb-3 text-emerald-500"></i>
+                            <p class="font-semibold text-slate-700">Nenhum lote corresponde ao filtro selecionado!</p>
+                            <p class="text-xs text-slate-400 mt-1">Todos os produtos monitorados estão dentro dos parâmetros.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+

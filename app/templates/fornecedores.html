@@ -1,0 +1,380 @@
+{% extends "base.html" %}
+
+{% block title %}Gestão de Fornecedores{% endblock %}
+{% block header_title %}Fornecedores & Parceiros Comerciais{% endblock %}
+{% block header_subtitle %}Cadastro de distribuidoras, indústrias e contatos comerciais homologados{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    {% set total_fornecedores = fornecedores | length %}
+    {% set total_ativos = fornecedores | selectattr('ativo', 'equalto', 1) | list | length %}
+    {% set total_inativos = fornecedores | selectattr('ativo', 'equalto', 0) | list | length %}
+
+    <!-- CARDS DE RESUMO DE FORNECEDORES -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-sm">
+            <span class="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Total de Parceiros</span>
+            <div class="mt-2 text-2xl font-black text-slate-900">{{ total_fornecedores }}</div>
+            <span class="text-[10px] text-slate-500">fornecedores cadastrados</span>
+        </div>
+
+        <div class="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-sm">
+            <span class="text-[10px] uppercase font-bold text-emerald-600 block tracking-wider">Fornecedores Ativos</span>
+            <div class="mt-2 text-2xl font-black text-emerald-600">{{ total_ativos }}</div>
+            <span class="text-[10px] text-slate-500">aptos para pedidos e recebimento</span>
+        </div>
+
+        <div class="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-sm">
+            <span class="text-[10px] uppercase font-bold text-rose-600 block tracking-wider">Fornecedores Inativos</span>
+            <div class="mt-2 text-2xl font-black text-rose-600">{{ total_inativos }}</div>
+            <span class="text-[10px] text-slate-500">compras suspensas temporariamente</span>
+        </div>
+    </div>
+
+    <!-- BARRA DE PESQUISA E BOTÃO NOVO -->
+    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+        <form method="GET" action="{{ url_for('main.fornecedores') }}" class="flex-1 w-full flex items-center gap-3">
+            <div class="relative flex-1">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </span>
+                <input type="text" name="busca" value="{{ busca if busca else '' }}" 
+                       placeholder="Buscar por razão social, nome fantasia, CNPJ ou cidade..." 
+                       class="w-full pl-10 pr-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+            </div>
+            <button type="submit" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold rounded-xl transition">
+                Buscar
+            </button>
+            {% if busca %}
+                <a href="{{ url_for('main.fornecedores') }}" class="text-xs text-slate-500 hover:text-rose-600 underline whitespace-nowrap">
+                    Limpar
+                </a>
+            {% endif %}
+        </form>
+
+        <button onclick="document.getElementById('modal-novo-fornecedor').classList.remove('hidden')" 
+                class="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-sm rounded-xl shadow-sm transition whitespace-nowrap">
+            <i class="fa-solid fa-plus"></i>
+            <span>Cadastrar Fornecedor</span>
+        </button>
+    </div>
+
+    <!-- TABELA DE FORNECEDORES -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+            <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                <i class="fa-solid fa-truck-field text-amber-500"></i>
+                <span>Relação de Fornecedores Homologados</span>
+            </h3>
+            <span class="text-xs text-slate-400">{{ fornecedores | length }} encontrado(s)</span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-600">
+                <thead class="bg-slate-50/75 border-b border-slate-100 text-[11px] uppercase font-bold text-slate-500 tracking-wider">
+                    <tr>
+                        <th class="py-3.5 px-4">Fornecedor & CNPJ</th>
+                        <th class="py-3.5 px-4">Contato Comercial</th>
+                        <th class="py-3.5 px-4">Telefone / E-mail</th>
+                        <th class="py-3.5 px-4">Localização</th>
+                        <th class="py-3.5 px-4 text-center">Status</th>
+                        <th class="py-3.5 px-4 text-center">Lotes Recebidos</th>
+                        <th class="py-3.5 px-4 text-center">Ações</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 font-medium">
+                    {% for f in fornecedores %}
+                    <tr class="hover:bg-slate-50/60 transition {% if f.ativo == 0 %}opacity-60 bg-slate-50/40{% endif %}">
+                        <!-- Nome e CNPJ -->
+                        <td class="py-3.5 px-4">
+                            <div class="font-bold text-slate-900">{{ f.nome_fantasia }}</div>
+                            <div class="text-xs text-slate-400">{{ f.razao_social }}</div>
+                            <div class="text-[11px] text-slate-400 font-mono mt-0.5">
+                                CNPJ: {{ f.cnpj if f.cnpj else 'Não informado' }}
+                            </div>
+                        </td>
+
+                        <!-- Contato -->
+                        <td class="py-3.5 px-4">
+                            <span class="font-semibold text-slate-800">{{ f.contato_responsavel if f.contato_responsavel else '-' }}</span>
+                        </td>
+
+                        <!-- Telefone / Email -->
+                        <td class="py-3.5 px-4">
+                            {% if f.telefone %}
+                                <div class="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-phone text-[10px] text-slate-400"></i> {{ f.telefone }}
+                                </div>
+                            {% endif %}
+                            {% if f.email %}
+                                <div class="text-xs text-slate-400 truncate max-w-xs flex items-center gap-1.5 mt-0.5">
+                                    <i class="fa-solid fa-envelope text-[10px] text-slate-400"></i> {{ f.email }}
+                                </div>
+                            {% endif %}
+                            {% if not f.telefone and not f.email %}
+                                <span class="text-slate-400 text-xs">-</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Localização -->
+                        <td class="py-3.5 px-4 text-xs text-slate-600">
+                            {% if f.cidade %}
+                                {{ f.cidade }}{% if f.uf %}/{{ f.uf }}{% endif %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+
+                        <!-- Status -->
+                        <td class="py-3.5 px-4 text-center">
+                            {% if f.ativo == 1 %}
+                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-100 text-emerald-800 text-xs font-semibold rounded-full">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Ativo
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 bg-rose-100 text-rose-800 text-xs font-semibold rounded-full">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> Inativo
+                                </span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Lotes Vinculados -->
+                        <td class="py-3.5 px-4 text-center">
+                            <span class="font-bold text-slate-800">{{ f.total_lotes }}</span>
+                            <span class="text-[10px] text-slate-400 block">lote(s)</span>
+                        </td>
+
+                        <!-- Ações -->
+                        <td class="py-3.5 px-4 text-center">
+                            <div class="inline-flex items-center gap-1.5">
+                                <!-- Editar -->
+                                <button onclick="abrirModalEdicaoFornecedor({{ f | tojson }})" 
+                                        class="p-2 text-slate-600 hover:text-amber-600 hover:bg-slate-100 rounded-lg transition" title="Editar Fornecedor">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+
+                                <!-- Alternar Status (Ativar / Desativar) -->
+                                <form method="POST" action="{{ url_for('main.alternar_status_fornecedor_rota', id=f.id) }}" 
+                                      onsubmit="return confirm('Deseja realmente {% if f.ativo == 1 %}DESATIVAR{% else %}ATIVAR{% endif %} o fornecedor {{ f.nome_fantasia }}?');">
+                                    <button type="submit" class="p-2 {% if f.ativo == 1 %}text-rose-500 hover:bg-rose-50{% else %}text-emerald-500 hover:bg-emerald-50{% endif %} rounded-lg transition" 
+                                            title="{% if f.ativo == 1 %}Inativar Fornecedor{% else %}Ativar Fornecedor{% endif %}">
+                                        <i class="fa-solid {% if f.ativo == 1 %}fa-toggle-on text-emerald-600 text-base{% else %}fa-toggle-off text-slate-400 text-base{% endif %}"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="py-12 text-center text-slate-400">
+                            <i class="fa-solid fa-truck-field text-4xl mb-3 text-slate-300"></i>
+                            <p class="font-semibold text-slate-700">Nenhum fornecedor cadastrado ou encontrado com o filtro.</p>
+                            <button onclick="document.getElementById('modal-novo-fornecedor').classList.remove('hidden')" 
+                                    class="inline-block mt-3 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl shadow-sm transition">
+                                Cadastrar Primeiro Fornecedor
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- MODAL: NOVO FORNECEDOR -->
+<div id="modal-novo-fornecedor" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 overflow-y-auto max-h-[90vh]">
+        <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+            <h3 class="font-bold text-lg text-slate-900 flex items-center gap-2">
+                <i class="fa-solid fa-truck-field text-amber-500"></i> Cadastrar Fornecedor Homologado
+            </h3>
+            <button onclick="document.getElementById('modal-novo-fornecedor').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <form method="POST" action="{{ url_for('main.novo_fornecedor') }}" class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Razão Social *</label>
+                    <input type="text" name="razao_social" required placeholder="Ex: Ambev Brasil Bebidas S/A"
+                           class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Nome Fantasia</label>
+                    <input type="text" name="nome_fantasia" placeholder="Ex: Ambev Distribuidora"
+                           class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">CNPJ</label>
+                    <input type="text" name="cnpj" placeholder="00.000.000/0000-00"
+                           class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Contato / Vendedor Responsável</label>
+                    <input type="text" name="contato_responsavel" placeholder="Ex: Marcos Representante"
+                           class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Telefone / WhatsApp</label>
+                    <input type="text" name="telefone" placeholder="(00) 00000-0000"
+                           class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">E-mail Comercial</label>
+                    <input type="email" name="email" placeholder="pedidos@fornecedor.com"
+                           class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3">
+                <div class="col-span-2">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Cidade</label>
+                    <input type="text" name="cidade" placeholder="Ex: São Paulo"
+                           class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">UF</label>
+                    <input type="text" name="uf" maxlength="2" placeholder="SP"
+                           class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm uppercase font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Observações / Condições Comerciais</label>
+                <textarea name="observacoes" rows="2" placeholder="Ex: Prazo de entrega 3 dias úteis. Pagamento boleto 28 dias."
+                          class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition"></textarea>
+            </div>
+
+            <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+                <button type="button" onclick="document.getElementById('modal-novo-fornecedor').classList.add('hidden')" 
+                        class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition">
+                    Cancelar
+                </button>
+                <button type="submit" class="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl shadow-sm transition">
+                    Salvar Fornecedor
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: EDITAR FORNECEDOR -->
+<div id="modal-editar-fornecedor" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 overflow-y-auto max-h-[90vh]">
+        <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+            <h3 class="font-bold text-lg text-slate-900 flex items-center gap-2">
+                <i class="fa-solid fa-pen-to-square text-amber-500"></i> Editar Fornecedor
+            </h3>
+            <button onclick="document.getElementById('modal-editar-fornecedor').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <form id="form-editar-fornecedor" method="POST" class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Razão Social *</label>
+                    <input type="text" id="edit-f-razao" name="razao_social" required
+                           class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Nome Fantasia</label>
+                    <input type="text" id="edit-f-fantasia" name="nome_fantasia"
+                           class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">CNPJ</label>
+                    <input type="text" id="edit-f-cnpj" name="cnpj"
+                           class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Contato / Vendedor</label>
+                    <input type="text" id="edit-f-contato" name="contato_responsavel"
+                           class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Telefone / WhatsApp</label>
+                    <input type="text" id="edit-f-telefone" name="telefone"
+                           class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">E-mail Comercial</label>
+                    <input type="email" id="edit-f-email" name="email"
+                           class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3">
+                <div class="col-span-2">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Cidade</label>
+                    <input type="text" id="edit-f-cidade" name="cidade"
+                           class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">UF</label>
+                    <input type="text" id="edit-f-uf" name="uf" maxlength="2"
+                           class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm uppercase font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Observações</label>
+                <textarea id="edit-f-obs" name="observacoes" rows="2"
+                          class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition"></textarea>
+            </div>
+
+            <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+                <button type="button" onclick="document.getElementById('modal-editar-fornecedor').classList.add('hidden')" 
+                        class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition">
+                    Cancelar
+                </button>
+                <button type="submit" class="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl shadow-sm transition">
+                    Salvar Alterações
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function abrirModalEdicaoFornecedor(f) {
+        document.getElementById('form-editar-fornecedor').action = '/fornecedores/editar/' + f.id;
+        document.getElementById('edit-f-razao').value = f.razao_social || '';
+        document.getElementById('edit-f-fantasia').value = f.nome_fantasia || '';
+        document.getElementById('edit-f-cnpj').value = f.cnpj || '';
+        document.getElementById('edit-f-contato').value = f.contato_responsavel || '';
+        document.getElementById('edit-f-telefone').value = f.telefone || '';
+        document.getElementById('edit-f-email').value = f.email || '';
+        document.getElementById('edit-f-cidade').value = f.cidade || '';
+        document.getElementById('edit-f-uf').value = f.uf || '';
+        document.getElementById('edit-f-obs').value = f.observacoes || '';
+        document.getElementById('modal-editar-fornecedor').classList.remove('hidden');
+    }
+</script>
+{% endblock %}
+

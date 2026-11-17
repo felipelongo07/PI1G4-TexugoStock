@@ -1,0 +1,333 @@
+{% extends "base.html" %}
+
+{% block title %}Gestão de Colaboradores{% endblock %}
+{% block header_title %}Colaboradores & Acessos{% endblock %}
+{% block header_subtitle %}Gestão de funcionários, níveis de permissão e credenciais de acesso{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    {% set total_usuarios = usuarios | length %}
+    {% set total_admins = usuarios | selectattr('perfil', 'equalto', 'admin') | list | length %}
+    {% set total_ativos = usuarios | selectattr('ativo', 'equalto', 1) | list | length %}
+    {% set total_inativos = usuarios | selectattr('ativo', 'equalto', 0) | list | length %}
+
+    <!-- CARDS DE RESUMO DE USUÁRIOS -->
+    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div class="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-sm">
+            <span class="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Total de Contas</span>
+            <div class="mt-2 text-2xl font-black text-slate-900">{{ total_usuarios }}</div>
+            <span class="text-[10px] text-slate-500">colaboradores cadastrados</span>
+        </div>
+
+        <div class="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-sm">
+            <span class="text-[10px] uppercase font-bold text-amber-600 block tracking-wider">Gestores / Admins</span>
+            <div class="mt-2 text-2xl font-black text-amber-600">{{ total_admins }}</div>
+            <span class="text-[10px] text-slate-500">acesso administrativo total</span>
+        </div>
+
+        <div class="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-sm">
+            <span class="text-[10px] uppercase font-bold text-emerald-600 block tracking-wider">Contas Ativas</span>
+            <div class="mt-2 text-2xl font-black text-emerald-600">{{ total_ativos }}</div>
+            <span class="text-[10px] text-slate-500">aptos para operar o sistema</span>
+        </div>
+
+        <div class="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-sm">
+            <span class="text-[10px] uppercase font-bold text-rose-600 block tracking-wider">Contas Inativas</span>
+            <div class="mt-2 text-2xl font-black text-rose-600">{{ total_inativos }}</div>
+            <span class="text-[10px] text-slate-500">acesso bloqueado</span>
+        </div>
+    </div>
+
+    <!-- TABELA DE USUÁRIOS E BOTÃO NOVO -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        
+        <div class="p-4 border-b border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-users text-amber-500"></i>
+                <h3 class="font-bold text-slate-800">Quadro de Colaboradores</h3>
+                <span class="px-2.5 py-0.5 bg-slate-100 text-slate-700 text-xs font-bold rounded-full">
+                    {{ total_usuarios }} funcionários
+                </span>
+            </div>
+
+            <button onclick="document.getElementById('modal-novo-usuario').classList.remove('hidden')" 
+                    class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl shadow-sm transition flex items-center gap-2">
+                <i class="fa-solid fa-user-plus"></i>
+                <span>Cadastrar Novo Colaborador</span>
+            </button>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-600">
+                <thead class="bg-slate-50/75 border-b border-slate-100 text-[11px] uppercase font-bold text-slate-500 tracking-wider">
+                    <tr>
+                        <th class="py-3.5 px-4">Colaborador & E-mail</th>
+                        <th class="py-3.5 px-4">Cargo / Função</th>
+                        <th class="py-3.5 px-4 text-center">Perfil de Acesso</th>
+                        <th class="py-3.5 px-4 text-center">Status</th>
+                        <th class="py-3.5 px-4 text-center">Operações Realizadas</th>
+                        <th class="py-3.5 px-4 text-center">Ações</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 font-medium">
+                    {% for u in usuarios %}
+                    <tr class="hover:bg-slate-50/60 transition {% if u.ativo == 0 %}opacity-60 bg-slate-50/40{% endif %}">
+                        <!-- Colaborador -->
+                        <td class="py-3.5 px-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs uppercase flex-shrink-0">
+                                    {{ u.nome[:2] }}
+                                </div>
+                                <div>
+                                    <div class="font-bold text-slate-900 flex items-center gap-1.5">
+                                        <span>{{ u.nome }}</span>
+                                        {% if usuario_logado and usuario_logado.id == u.id %}
+                                            <span class="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[9px] font-extrabold rounded">Você</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-xs text-slate-400 font-mono">{{ u.email }}</div>
+                                </div>
+                            </div>
+                        </td>
+
+                        <!-- Cargo -->
+                        <td class="py-3.5 px-4">
+                            <span class="font-semibold text-slate-800">{{ u.cargo }}</span>
+                        </td>
+
+                        <!-- Perfil -->
+                        <td class="py-3.5 px-4 text-center">
+                            {% if u.perfil == 'admin' %}
+                                <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-lg border border-amber-200">
+                                    <i class="fa-solid fa-user-shield text-amber-600"></i> Administrador
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-sky-100 text-sky-800 text-xs font-bold rounded-lg border border-sky-200">
+                                    <i class="fa-solid fa-boxes-packing text-sky-600"></i> Operador
+                                </span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Status -->
+                        <td class="py-3.5 px-4 text-center">
+                            {% if u.ativo == 1 %}
+                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-100 text-emerald-800 text-xs font-semibold rounded-full">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Ativo
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 bg-rose-100 text-rose-800 text-xs font-semibold rounded-full">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> Inativo
+                                </span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Total de Operações -->
+                        <td class="py-3.5 px-4 text-center">
+                            <span class="font-bold text-slate-800">{{ u.total_operacoes }}</span>
+                            <span class="text-[10px] text-slate-400 block">registros</span>
+                        </td>
+
+                        <!-- Ações -->
+                        <td class="py-3.5 px-4 text-center">
+                            <div class="inline-flex items-center gap-1.5">
+                                <!-- Botão Editar -->
+                                <button onclick="abrirModalEdicao({{ u | tojson }})" 
+                                        class="p-2 text-slate-600 hover:text-amber-600 hover:bg-slate-100 rounded-lg transition" title="Editar Colaborador">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+
+                                <!-- Botão Redefinir Senha -->
+                                <button onclick="abrirModalSenha({{ u.id }}, '{{ u.nome }}')" 
+                                        class="p-2 text-slate-600 hover:text-sky-600 hover:bg-slate-100 rounded-lg transition" title="Redefinir Senha">
+                                    <i class="fa-solid fa-key"></i>
+                                </button>
+
+                                <!-- Alternar Status (Ativar / Desativar) -->
+                                {% if usuario_logado and usuario_logado.id != u.id %}
+                                    <form method="POST" action="{{ url_for('main.alternar_status_usuario_rota', id=u.id) }}" 
+                                          onsubmit="return confirm('Deseja realmente {% if u.ativo == 1 %}DESATIVAR{% else %}ATIVAR{% endif %} o acesso de {{ u.nome }}?');">
+                                        <button type="submit" class="p-2 {% if u.ativo == 1 %}text-rose-500 hover:bg-rose-50{% else %}text-emerald-500 hover:bg-emerald-50{% endif %} rounded-lg transition" 
+                                                title="{% if u.ativo == 1 %}Desativar Acesso{% else %}Ativar Acesso{% endif %}">
+                                            <i class="fa-solid {% if u.ativo == 1 %}fa-user-slash{% else %}fa-user-check{% endif %}"></i>
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- MODAL: NOVO COLABORADOR -->
+<div id="modal-novo-usuario" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200">
+        <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+            <h3 class="font-bold text-lg text-slate-900 flex items-center gap-2">
+                <i class="fa-solid fa-user-plus text-amber-500"></i> Cadastrar Colaborador
+            </h3>
+            <button onclick="document.getElementById('modal-novo-usuario').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <form method="POST" action="{{ url_for('main.novo_usuario') }}" class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Nome Completo *</label>
+                <input type="text" name="nome" required placeholder="Ex: Roberto Gomes"
+                       class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">E-mail Corporativo de Acesso *</label>
+                <input type="email" name="email" required placeholder="roberto@empresa.com"
+                       class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Cargo / Função *</label>
+                    <input type="text" name="cargo" required placeholder="Ex: Conferente"
+                           class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Perfil de Permissão *</label>
+                    <select name="perfil" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 transition">
+                        <option value="estoquista">Operador / Estoquista</option>
+                        <option value="admin">Administrador / Gestor</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Senha Inicial de Acesso (mín. 6 caracteres) *</label>
+                <input type="password" name="senha" minlength="6" required placeholder="••••••••"
+                       class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+            </div>
+
+            <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+                <button type="button" onclick="document.getElementById('modal-novo-usuario').classList.add('hidden')" 
+                        class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition">
+                    Cancelar
+                </button>
+                <button type="submit" class="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl shadow-sm transition">
+                    Salvar Colaborador
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: EDITAR COLABORADOR -->
+<div id="modal-editar-usuario" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200">
+        <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+            <h3 class="font-bold text-lg text-slate-900 flex items-center gap-2">
+                <i class="fa-solid fa-pen-to-square text-amber-500"></i> Editar Colaborador
+            </h3>
+            <button onclick="document.getElementById('modal-editar-usuario').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <form id="form-editar-usuario" method="POST" class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Nome Completo *</label>
+                <input type="text" id="edit-nome" name="nome" required
+                       class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">E-mail Corporativo *</label>
+                <input type="email" id="edit-email" name="email" required
+                       class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Cargo / Função *</label>
+                    <input type="text" id="edit-cargo" name="cargo" required
+                           class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Perfil de Permissão *</label>
+                    <select id="edit-perfil" name="perfil" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 transition">
+                        <option value="estoquista">Operador / Estoquista</option>
+                        <option value="admin">Administrador / Gestor</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+                <button type="button" onclick="document.getElementById('modal-editar-usuario').classList.add('hidden')" 
+                        class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition">
+                    Cancelar
+                </button>
+                <button type="submit" class="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl shadow-sm transition">
+                    Atualizar Dados
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: REDEFINIR SENHA -->
+<div id="modal-redefinir-senha" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-200">
+        <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+            <h3 class="font-bold text-base text-slate-900 flex items-center gap-2">
+                <i class="fa-solid fa-key text-sky-600"></i> Redefinir Senha
+            </h3>
+            <button onclick="document.getElementById('modal-redefinir-senha').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <p class="text-xs text-slate-500 mb-3">Redefinindo senha para: <strong id="senha-usuario-nome" class="text-slate-800"></strong></p>
+
+        <form id="form-redefinir-senha" method="POST" class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Nova Senha (mín. 6 dígitos) *</label>
+                <input type="password" name="nova_senha" minlength="6" required placeholder="Nova senha segura"
+                       class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:bg-white transition">
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-3">
+                <button type="button" onclick="document.getElementById('modal-redefinir-senha').classList.add('hidden')" 
+                        class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition">
+                    Cancelar
+                </button>
+                <button type="submit" class="px-5 py-2 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-xl shadow-sm transition">
+                    Confirmar Senha
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function abrirModalEdicao(usuario) {
+        document.getElementById('form-editar-usuario').action = '/usuarios/editar/' + usuario.id;
+        document.getElementById('edit-nome').value = usuario.nome;
+        document.getElementById('edit-email').value = usuario.email;
+        document.getElementById('edit-cargo').value = usuario.cargo;
+        document.getElementById('edit-perfil').value = usuario.perfil;
+        document.getElementById('modal-editar-usuario').classList.remove('hidden');
+    }
+
+    function abrirModalSenha(usuarioId, usuarioNome) {
+        document.getElementById('form-redefinir-senha').action = '/usuarios/redefinir-senha/' + usuarioId;
+        document.getElementById('senha-usuario-nome').textContent = usuarioNome;
+        document.getElementById('modal-redefinir-senha').classList.remove('hidden');
+    }
+</script>
+{% endblock %}
+

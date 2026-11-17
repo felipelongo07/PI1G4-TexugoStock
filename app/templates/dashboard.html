@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Geral{% endblock %}
+{% block header_title %}Painel de Controle{% endblock %}
+{% block header_subtitle %}Visão consolidada de produtos, lotes, validades e reposição{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- BANNER DE BOAS-VINDAS & STATUS DO SISTEMA -->
+    <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 text-white shadow-md border border-slate-800 relative overflow-hidden">
+        <div class="absolute right-0 top-0 bottom-0 w-1/3 opacity-10 flex items-center justify-center text-9xl pointer-events-none">
+            🦡
+        </div>
+        <div class="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-500 text-slate-950">
+                        {{ EMPRESA_NOME }}
+                    </span>
+                    <span class="text-xs text-slate-400">Painel Operacional &bull; Estoque & Validade</span>
+                </div>
+                <h2 class="text-2xl font-black tracking-tight text-white">
+                    Olá, {{ usuario_logado.nome if usuario_logado else 'Colaborador' }}! 👋
+                </h2>
+                <p class="text-xs text-slate-300 mt-1 max-w-xl">
+                    Sistema operacional ativo com monitoramento de validade e baixa inteligente FEFO. Acompanhe os alertas críticos abaixo para evitar perdas financeiras.
+                </p>
+            </div>
+
+            <!-- Botões Rápidos de Ação -->
+            <div class="flex flex-wrap items-center gap-2">
+                <a href="{{ url_for('main.entrada_lote') }}" 
+                   class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center gap-2">
+                    <i class="fa-solid fa-plus-circle"></i>
+                    <span>Receber Lote (RF02)</span>
+                </a>
+                <a href="{{ url_for('main.saida_venda') }}" 
+                   class="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl shadow-sm transition flex items-center gap-2">
+                    <i class="fa-solid fa-cart-shopping"></i>
+                    <span>Venda FEFO (RF05)</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- CARDS DE MÉTRICAS (6 KPIS PRINCIPAIS) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3.5">
+        
+        <!-- 1. Total de Produtos -->
+        <a href="{{ url_for('main.produtos') }}" class="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-sm hover:border-slate-300 transition">
+            <div class="flex items-center justify-between text-slate-400">
+                <span class="text-[10px] font-bold uppercase tracking-wider">Produtos</span>
+                <i class="fa-solid fa-boxes-stacked text-xs"></i>
+            </div>
+            <div class="mt-2 text-2xl font-black text-slate-900">{{ metricas.total_produtos }}</div>
+            <span class="text-[10px] text-slate-500">no catálogo (RF01)</span>
+        </a>
+
+        <!-- 2. Unidades Físicas -->
+        <div class="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-sm">
+            <div class="flex items-center justify-between text-slate-400">
+                <span class="text-[10px] font-bold uppercase tracking-wider">Itens Físicos</span>
+                <i class="fa-solid fa-cubes text-xs"></i>
+            </div>
+            <div class="mt-2 text-2xl font-black text-slate-900">{{ metricas.total_itens_fisicos }}</div>
+            <span class="text-[10px] text-slate-500">unidades em estoque</span>
+        </div>
+
+        <!-- 3. Valor Total em Estoque -->
+        <div class="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-sm">
+            <div class="flex items-center justify-between text-slate-400">
+                <span class="text-[10px] font-bold uppercase tracking-wider">Valor em Estoque</span>
+                <i class="fa-solid fa-dollar-sign text-xs text-emerald-500"></i>
+            </div>
+            <div class="mt-2 text-xl font-black text-emerald-600 truncate">{{ metricas.valor_total_estoque | moeda }}</div>
+            <span class="text-[10px] text-slate-500">preço de venda</span>
+        </div>
+
+        <!-- 4. Lotes Vencidos (RF07) -->
+        <a href="{{ url_for('main.controle_validade', status='VENCIDO') }}" 
+           class="p-4 bg-white rounded-2xl border border-rose-200 shadow-sm hover:shadow-md transition group">
+            <div class="flex items-center justify-between text-rose-600">
+                <span class="text-[10px] font-bold uppercase tracking-wider">⛔ Lotes Vencidos</span>
+                <span class="w-5 h-5 rounded-full bg-rose-100 flex items-center justify-center text-[10px]">
+                    <i class="fa-solid fa-ban"></i>
+                </span>
+            </div>
+            <div class="mt-2 text-2xl font-black text-rose-600">{{ metricas.total_lotes_vencidos }}</div>
+            <span class="text-[10px] font-semibold text-rose-600">{{ metricas.unidades_vencidas }} un. a descartar</span>
+        </a>
+
+        <!-- 5. Lotes a Vencer (RF07) -->
+        <a href="{{ url_for('main.controle_validade', status='PROXIMO') }}" 
+           class="p-4 bg-white rounded-2xl border border-amber-200 shadow-sm hover:shadow-md transition group">
+            <div class="flex items-center justify-between text-amber-600">
+                <span class="text-[10px] font-bold uppercase tracking-wider">⏳ A Vencer Breve</span>
+                <span class="w-5 h-5 rounded-full bg-amber-100 flex items-center justify-center text-[10px]">
+                    <i class="fa-solid fa-clock"></i>
+                </span>
+            </div>
+            <div class="mt-2 text-2xl font-black text-amber-600">{{ metricas.total_lotes_proximos }}</div>
+            <span class="text-[10px] font-semibold text-amber-700">{{ metricas.unidades_proximas }} un. em &le;{{ metricas.dias_alerta_configurados }}d</span>
+        </a>
+
+        <!-- 6. Estoque Baixo / Reposição (RF08) -->
+        <a href="{{ url_for('main.estoque_baixo') }}" 
+           class="p-4 bg-white rounded-2xl border border-orange-200 shadow-sm hover:shadow-md transition group">
+            <div class="flex items-center justify-between text-orange-600">
+                <span class="text-[10px] font-bold uppercase tracking-wider">⚠️ Reposição</span>
+                <span class="w-5 h-5 rounded-full bg-orange-100 flex items-center justify-center text-[10px]">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </span>
+            </div>
+            <div class="mt-2 text-2xl font-black text-orange-600">{{ metricas.total_produtos_estoque_baixo }}</div>
+            <span class="text-[10px] font-semibold text-orange-700">abaixo do mínimo (RF08)</span>
+        </a>
+
+    </div>
+
+    <!-- SEÇÃO CENTRAL: 2 PAINÉIS DE ALERTAS CRÍTICOS -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- PAINEL 1: ALERTAS DE VALIDADE CRÍTICOS (RF07) -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden flex flex-col">
+            <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse"></span>
+                    <h3 class="font-bold text-slate-800 text-sm">Alertas Críticos de Validade (RF07)</h3>
+                </div>
+                <a href="{{ url_for('main.controle_validade') }}" class="text-xs text-amber-600 hover:underline font-semibold">
+                    Ver todos os lotes &rarr;
+                </a>
+            </div>
+
+            <div class="flex-1 overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-600">
+                    <thead class="bg-slate-50 border-b border-slate-100 text-[10px] uppercase font-bold text-slate-400">
+                        <tr>
+                            <th class="py-2.5 px-4">Produto & Lote</th>
+                            <th class="py-2.5 px-4 text-center">Validade</th>
+                            <th class="py-2.5 px-4 text-center">Saldo</th>
+                            <th class="py-2.5 px-4 text-center">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 font-medium">
+                        {% for l in lotes_alertas %}
+                        <tr class="hover:bg-slate-50/60 {% if l.status_validade == 'VENCIDO' %}bg-rose-50/30{% else %}bg-amber-50/20{% endif %}">
+                            <td class="py-2.5 px-4">
+                                <a href="{{ url_for('main.produto_detalhe', id=l.produto_id) }}" class="font-bold text-slate-900 hover:text-amber-600 block">
+                                    {{ l.produto_nome }}
+                                </a>
+                                <span class="font-mono text-[10px] text-slate-400">Lote: {{ l.numero_lote }}</span>
+                            </td>
+
+                            <td class="py-2.5 px-4 text-center">
+                                {% if l.status_validade == 'VENCIDO' %}
+                                    <span class="inline-block px-2 py-0.5 bg-rose-100 text-rose-800 font-bold rounded text-[10px]">
+                                        ⛔ Vencido ({{ l.dias_restantes | abs }}d atrás)
+                                    </span>
+                                {% else %}
+                                    <span class="inline-block px-2 py-0.5 bg-amber-100 text-amber-900 font-bold rounded text-[10px]">
+                                        ⏳ Vence em {{ l.dias_restantes }} dias
+                                    </span>
+                                {% endif %}
+                                <div class="text-[10px] text-slate-400 mt-0.5">{{ l.data_validade | data_br }}</div>
+                            </td>
+
+                            <td class="py-2.5 px-4 text-center font-bold text-slate-900">
+                                {{ l.quantidade_atual }} {{ l.unidade_medida }}
+                            </td>
+
+                            <td class="py-2.5 px-4 text-center">
+                                {% if l.status_validade == 'VENCIDO' %}
+                                    <form method="POST" action="{{ url_for('main.descarte_lote_rota', id=l.id) }}"
+                                          onsubmit="return confirm('Deseja dar baixa total deste lote por descarte vencido?');">
+                                        <button type="submit" class="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold rounded transition">
+                                            Descartar
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    <a href="{{ url_for('main.saida_venda', produto_id=l.produto_id) }}" 
+                                       class="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-slate-950 text-[10px] font-bold rounded transition inline-block">
+                                        Vender (FEFO)
+                                    </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="py-8 text-center text-slate-400 text-xs">
+                                <i class="fa-solid fa-circle-check text-emerald-500 text-2xl mb-1 block"></i>
+                                Nenhum lote em alerta crítico de validade no momento!
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- PAINEL 2: PRODUTOS COM ESTOQUE BAIXO (RF08) -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden flex flex-col">
+            <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+                    <h3 class="font-bold text-slate-800 text-sm">Alerta de Reposição de Estoque (RF08)</h3>
+                </div>
+                <a href="{{ url_for('main.estoque_baixo') }}" class="text-xs text-amber-600 hover:underline font-semibold">
+                    Ver lista completa &rarr;
+                </a>
+            </div>
+
+            <div class="flex-1 overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-600">
+                    <thead class="bg-slate-50 border-b border-slate-100 text-[10px] uppercase font-bold text-slate-400">
+                        <tr>
+                            <th class="py-2.5 px-4">Produto</th>
+                            <th class="py-2.5 px-4 text-center">Saldo Atual</th>
+                            <th class="py-2.5 px-4 text-center">Estoque Mínimo</th>
+                            <th class="py-2.5 px-4 text-center">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 font-medium">
+                        {% for p in metricas.produtos_estoque_baixo %}
+                        <tr class="hover:bg-slate-50/60 {% if p.status_estoque == 'ZERADO' %}bg-rose-50/30{% else %}bg-amber-50/20{% endif %}">
+                            <td class="py-2.5 px-4">
+                                <a href="{{ url_for('main.produto_detalhe', id=p.id) }}" class="font-bold text-slate-900 hover:text-amber-600 block">
+                                    {{ p.nome }}
+                                </a>
+                                <span class="text-[10px] text-slate-400">{{ p.categoria }}</span>
+                            </td>
+
+                            <td class="py-2.5 px-4 text-center">
+                                <span class="font-black text-xs {% if p.status_estoque == 'ZERADO' %}text-rose-600{% else %}text-amber-600{% endif %}">
+                                    {{ p.estoque_atual }} {{ p.unidade_medida }}
+                                </span>
+                                {% if p.status_estoque == 'ZERADO' %}
+                                    <span class="block text-[9px] text-rose-600 font-extrabold uppercase">Esgotado</span>
+                                {% else %}
+                                    <span class="block text-[9px] text-amber-600 font-extrabold uppercase">Abaixo</span>
+                                {% endif %}
+                            </td>
+
+                            <td class="py-2.5 px-4 text-center font-bold text-slate-700">
+                                {{ p.estoque_minimo }} {{ p.unidade_medida }}
+                            </td>
+
+                            <td class="py-2.5 px-4 text-center">
+                                <a href="{{ url_for('main.entrada_lote', produto_id=p.id) }}" 
+                                   class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-lg transition inline-flex items-center gap-1">
+                                    <i class="fa-solid fa-plus"></i> Repor
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="py-8 text-center text-slate-400 text-xs">
+                                <i class="fa-solid fa-shield-check text-emerald-500 text-2xl mb-1 block"></i>
+                                Todos os produtos estão com níveis de estoque confortáveis!
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- SEÇÃO INFERIOR: ÚLTIMAS MOVIMENTAÇÕES NO ESTOQUE (AUDITORIA EM TEMPO REAL) -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-clock-rotate-left text-slate-400"></i>
+                <h3 class="font-bold text-slate-800 text-sm">Histórico Recente de Movimentações</h3>
+            </div>
+            <a href="{{ url_for('main.movimentacoes') }}" class="text-xs text-amber-600 hover:underline font-semibold">
+                Ver auditoria completa &rarr;
+            </a>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-slate-600">
+                <thead class="bg-slate-50 border-b border-slate-100 text-[10px] uppercase font-bold text-slate-400">
+                    <tr>
+                        <th class="py-3 px-4">Data / Hora</th>
+                        <th class="py-3 px-4">Tipo Movimentação</th>
+                        <th class="py-3 px-4">Produto</th>
+                        <th class="py-3 px-4 text-center">Quantidade</th>
+                        <th class="py-3 px-4">Lote / Validade</th>
+                        <th class="py-3 px-4">Motivo / Operação</th>
+                        <th class="py-3 px-4">Colaborador</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 font-medium">
+                    {% for m in movimentacoes %}
+                    <tr class="hover:bg-slate-50/60 transition">
+                        <td class="py-3 px-4 whitespace-nowrap text-slate-500">{{ m.data_hora }}</td>
+                        <td class="py-3 px-4">
+                            {% if m.tipo == 'ENTRADA' %}
+                                <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-extrabold rounded text-[10px]">
+                                    <i class="fa-solid fa-arrow-down mr-0.5"></i> ENTRADA
+                                </span>
+                            {% elif m.tipo == 'SAIDA_VENDA' %}
+                                <span class="px-2 py-0.5 bg-sky-100 text-sky-800 font-extrabold rounded text-[10px]">
+                                    <i class="fa-solid fa-arrow-up mr-0.5"></i> SAÍDA / VENDA
+                                </span>
+                            {% else %}
+                                <span class="px-2 py-0.5 bg-rose-100 text-rose-800 font-extrabold rounded text-[10px]">
+                                    <i class="fa-solid fa-trash mr-0.5"></i> DESCARTE
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-4 font-bold text-slate-900">{{ m.produto_nome }}</td>
+                        <td class="py-3 px-4 text-center font-extrabold text-sm {% if m.tipo == 'ENTRADA' %}text-emerald-600{% else %}text-slate-800{% endif %}">
+                            {% if m.tipo == 'ENTRADA' %}+{% else %}-{% endif %}{{ m.quantidade }} {{ m.unidade_medida }}
+                        </td>
+                        <td class="py-3 px-4 font-mono text-[11px] text-slate-500">
+                            {{ m.numero_lote if m.numero_lote else '-' }}
+                        </td>
+                        <td class="py-3 px-4 text-slate-600">{{ m.motivo }}</td>
+                        <td class="py-3 px-4 text-slate-500 font-semibold">{{ m.usuario_nome }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="py-8 text-center text-slate-400">
+                            Nenhuma movimentação registrada no sistema.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+

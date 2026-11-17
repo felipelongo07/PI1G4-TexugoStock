@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+
+{% block title %}{{ produto.nome }} - Detalhes{% endblock %}
+{% block header_title %}{{ produto.nome }}{% endblock %}
+{% block header_subtitle %}Ficha completa do produto, saldo de lotes ativos e histórico de movimentações{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- CABEÇALHO DO PRODUTO E AÇÕES RÁPIDAS -->
+    <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-2.5">
+                <span class="px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-bold rounded-lg uppercase">
+                    {{ produto.categoria }}
+                </span>
+                {% if produto.codigo_barras %}
+                    <span class="px-2.5 py-1 bg-slate-50 text-slate-500 font-mono text-xs rounded-lg border border-slate-200">
+                        <i class="fa-solid fa-barcode mr-1"></i>{{ produto.codigo_barras }}
+                    </span>
+                {% endif %}
+            </div>
+            <h2 class="text-2xl font-black text-slate-900 mt-2">{{ produto.nome }}</h2>
+            <p class="text-xs text-slate-500 mt-1">{{ produto.descricao if produto.descricao else 'Sem descrição complementar cadastrada.' }}</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
+            <!-- Botão Receber Novo Lote -->
+            <a href="{{ url_for('main.entrada_lote', produto_id=produto.id) }}" 
+               class="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition">
+                <i class="fa-solid fa-dolly"></i>
+                <span>Nova Entrada de Lote (RF02)</span>
+            </a>
+
+            <!-- Botão Registrar Venda -->
+            <a href="{{ url_for('main.saida_venda', produto_id=produto.id) }}" 
+               class="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-xl shadow-sm transition">
+                <i class="fa-solid fa-cart-shopping"></i>
+                <span>Saída / Venda FEFO (RF05)</span>
+            </a>
+
+            <!-- Editar -->
+            <a href="{{ url_for('main.editar_produto_rota', id=produto.id) }}" 
+               class="p-2 text-slate-600 hover:text-amber-600 hover:bg-slate-100 rounded-xl transition border border-slate-200" title="Editar Informações">
+                <i class="fa-solid fa-pen-to-square"></i>
+            </a>
+
+            {% if usuario_logado and usuario_logado.perfil == 'admin' %}
+            <!-- Excluir (Admin) -->
+            <form method="POST" action="{{ url_for('main.excluir_produto_rota', id=produto.id) }}" 
+                  onsubmit="return confirm('Tem certeza que deseja remover este produto do catálogo?');">
+                <button type="submit" class="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition border border-slate-200" title="Excluir Produto">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- CARDS DE MÉTRICAS DO PRODUTO -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Saldo Atual -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Saldo Disponível (RF04)</span>
+            <div class="mt-2 flex items-baseline justify-between">
+                <span class="text-3xl font-black {% if produto.estoque_atual <= 0 %}text-rose-600{% elif produto.estoque_atual <= produto.estoque_minimo %}text-amber-600{% else %}text-emerald-600{% endif %}">
+                    {{ produto.estoque_atual }}
+                </span>
+                <span class="text-xs font-bold text-slate-500 uppercase">{{ produto.unidade_medida }}</span>
+            </div>
+            <div class="mt-2 text-xs">
+                {% if produto.estoque_atual <= 0 %}
+                    <span class="text-rose-600 font-bold">⛔ Estoque Esgotado</span>
+                {% elif produto.estoque_atual <= produto.estoque_minimo %}
+                    <span class="text-amber-600 font-bold">⚠️ Abaixo do Mínimo</span>
+                {% else %}
+                    <span class="text-emerald-600 font-semibold">✔ Nível Confortável</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Estoque Mínimo -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Estoque Mínimo (RF08)</span>
+            <div class="mt-2 flex items-baseline justify-between">
+                <span class="text-3xl font-black text-slate-800">{{ produto.estoque_minimo }}</span>
+                <span class="text-xs font-bold text-slate-500 uppercase">{{ produto.unidade_medida }}</span>
+            </div>
+            <div class="mt-2 text-xs text-slate-500">
+                Ponto de disparo para reposição
+            </div>
+        </div>
+
+        <!-- Preço de Venda -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Preço de Venda</span>
+            <div class="mt-2 text-2xl font-black text-slate-900">
+                {{ produto.preco_venda | moeda }}
+            </div>
+            <div class="mt-2 text-xs text-slate-500">
+                Custo de aquisição: {{ produto.preco_custo | moeda }}
+            </div>
+        </div>
+
+        <!-- Margem Unitária -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Margem Estimada</span>
+            <div class="mt-2 text-2xl font-black text-emerald-600">
+                {{ (produto.preco_venda - produto.preco_custo) | moeda }}
+            </div>
+            <div class="mt-2 text-xs text-slate-500">
+                Ganho bruto por unidade
+            </div>
+        </div>
+    </div>
+
+    <!-- TABELA DE LOTES VINCULADOS A ESTE PRODUTO (RF02, RF07) -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-layer-group text-amber-500"></i>
+                <h3 class="font-bold text-slate-800">Lotes Cadastrados e Datas de Validade</h3>
+                <span class="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs font-bold rounded-full">
+                    {{ lotes | length }} lote(s)
+                </span>
+            </div>
+            <span class="text-xs text-slate-400 italic">Ordenados por data de validade (Prioridade FEFO)</span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-600">
+                <thead class="bg-slate-50/75 border-b border-slate-100 text-[11px] uppercase font-bold text-slate-500 tracking-wider">
+                    <tr>
+                        <th class="py-3 px-4">Lote</th>
+                        <th class="py-3 px-4">Data de Validade (RF07)</th>
+                        <th class="py-3 px-4 text-center">Situação da Validade</th>
+                        <th class="py-3 px-4 text-center">Qtd. Inicial</th>
+                        <th class="py-3 px-4 text-center">Saldo Atual</th>
+                        <th class="py-3 px-4">Fornecedor</th>
+                        <th class="py-3 px-4 text-center">Ações</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 font-medium">
+                    {% for l in lotes %}
+                    <tr class="hover:bg-slate-50/60 transition {% if l.status_validade == 'VENCIDO' and l.quantidade_atual > 0 %}bg-rose-50/30{% endif %}">
+                        <td class="py-3 px-4">
+                            <span class="font-mono font-bold text-slate-800">{{ l.numero_lote }}</span>
+                            <div class="text-[11px] text-slate-400">Entrada: {{ l.data_recebimento | data_br }}</div>
+                        </td>
+
+                        <td class="py-3 px-4">
+                            <div class="font-bold text-slate-900">{{ l.data_validade | data_br }}</div>
+                        </td>
+
+                        <td class="py-3 px-4 text-center">
+                            {% if l.status_validade == 'VENCIDO' %}
+                                <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-100 text-rose-800 text-xs font-bold rounded-lg border border-rose-200">
+                                    <i class="fa-solid fa-triangle-exclamation text-rose-600"></i> VENCIDO ({{ l.dias_restantes | abs }}d atrás)
+                                </span>
+                            {% elif l.status_validade == 'PROXIMO' %}
+                                <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-lg border border-amber-200">
+                                    <i class="fa-solid fa-clock text-amber-600"></i> Vence em {{ l.dias_restantes }} dias
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-lg">
+                                    <i class="fa-solid fa-check text-emerald-600"></i> Validade OK (+{{ l.dias_restantes }}d)
+                                </span>
+                            {% endif %}
+                        </td>
+
+                        <td class="py-3 px-4 text-center text-slate-500 font-semibold">
+                            {{ l.quantidade_inicial }}
+                        </td>
+
+                        <td class="py-3 px-4 text-center">
+                            <span class="text-sm font-extrabold {% if l.quantidade_atual == 0 %}text-slate-400{% elif l.status_validade == 'VENCIDO' %}text-rose-600{% else %}text-slate-800{% endif %}">
+                                {{ l.quantidade_atual }}
+                            </span>
+                        </td>
+
+                        <td class="py-3 px-4 text-xs text-slate-500">
+                            {{ l.fornecedor if l.fornecedor else '-' }}
+                        </td>
+
+                        <td class="py-3 px-4 text-center">
+                            {% if l.quantidade_atual > 0 and l.status_validade == 'VENCIDO' %}
+                                <form method="POST" action="{{ url_for('main.descarte_lote_rota', id=l.id) }}"
+                                      onsubmit="return confirm('Deseja dar baixa total por DESCARTE VENCIDO deste lote?');">
+                                    <button type="submit" class="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold rounded-lg transition" title="Descartar produto vencido conforme fluxo da FATEC">
+                                        <i class="fa-solid fa-ban mr-1"></i> Descartar
+                                    </button>
+                                </form>
+                            {% elif l.quantidade_atual == 0 %}
+                                <span class="text-[11px] text-slate-400 italic">Esgotado</span>
+                            {% else %}
+                                <span class="text-[11px] text-emerald-600 font-semibold">Disponível</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="py-8 text-center text-slate-400">
+                            <p class="font-medium">Nenhum lote registrado para este produto ainda.</p>
+                            <a href="{{ url_for('main.entrada_lote', produto_id=produto.id) }}" class="inline-block mt-2 text-xs font-bold text-amber-600 hover:underline">
+                                Registrar Primeira Entrada de Lote
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- HISTÓRICO DE MOVIMENTAÇÕES DESTE PRODUTO -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+            <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                <i class="fa-solid fa-clock-rotate-left text-slate-400"></i> Histórico de Movimentações
+            </h3>
+            <span class="text-xs text-slate-400">Últimos registros</span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-slate-600">
+                <thead class="bg-slate-50 border-b border-slate-100 text-[10px] uppercase font-bold text-slate-500">
+                    <tr>
+                        <th class="py-2.5 px-4">Data / Hora</th>
+                        <th class="py-2.5 px-4">Tipo</th>
+                        <th class="py-2.5 px-4 text-center">Quantidade</th>
+                        <th class="py-2.5 px-4">Lote</th>
+                        <th class="py-2.5 px-4">Motivo / Descrição</th>
+                        <th class="py-2.5 px-4">Responsável</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 font-medium">
+                    {% for m in movimentacoes %}
+                    <tr class="hover:bg-slate-50/50">
+                        <td class="py-2.5 px-4 whitespace-nowrap">{{ m.data_hora }}</td>
+                        <td class="py-2.5 px-4">
+                            {% if m.tipo == 'ENTRADA' %}
+                                <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded">ENTRADA</span>
+                            {% elif m.tipo == 'SAIDA_VENDA' %}
+                                <span class="px-2 py-0.5 bg-sky-100 text-sky-800 font-bold rounded">SAÍDA / VENDA</span>
+                            {% else %}
+                                <span class="px-2 py-0.5 bg-rose-100 text-rose-800 font-bold rounded">DESCARTE</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-2.5 px-4 text-center font-bold text-slate-900">
+                            {% if m.tipo == 'ENTRADA' %}+{{ m.quantidade }}{% else %}-{{ m.quantidade }}{% endif %}
+                        </td>
+                        <td class="py-2.5 px-4 font-mono">{{ m.numero_lote if m.numero_lote else '-' }}</td>
+                        <td class="py-2.5 px-4 text-slate-500">{{ m.motivo }}</td>
+                        <td class="py-2.5 px-4 text-slate-500">{{ m.usuario_nome }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="py-6 text-center text-slate-400">
+                            Nenhuma movimentação registrada para este item.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+

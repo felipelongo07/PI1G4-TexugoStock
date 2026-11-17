@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block title %}Saída de Mercadorias e Vendas (FEFO){% endblock %}
+{% block header_title %}Saída / Venda de Produtos (RF05, RF06){% endblock %}
+{% block header_subtitle %}Baixa automática de estoque com priorização inteligente de lotes (Regra FEFO){% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+
+    <!-- Card Principal de Saída/Venda -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 sm:p-8">
+        
+        <div class="flex items-center justify-between pb-4 mb-6 border-b border-slate-100">
+            <div>
+                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-cart-shopping text-sky-600"></i>
+                    <span>Registrar Venda / Saída de Estoque</span>
+                </h3>
+                <p class="text-xs text-slate-500 mt-0.5">Etapas 9 a 12 do fluxo: Verificação de saldo, baixa automática e alerta de reposição.</p>
+            </div>
+            <span class="px-3 py-1 bg-sky-50 text-sky-800 border border-sky-200 text-xs font-bold rounded-lg flex items-center gap-1.5">
+                <i class="fa-solid fa-bolt text-sky-500"></i> Algoritmo FEFO Ativo
+            </span>
+        </div>
+
+        <form method="POST" action="{{ url_for('main.saida_venda') }}" class="space-y-6" id="form-saida">
+
+            <!-- Seleção do Produto -->
+            <div>
+                <label for="produto_id" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                    Produto para Saída / Venda <span class="text-rose-500">*</span>
+                </label>
+                <select id="produto_id" name="produto_id" required onchange="carregarInfoProduto(this)"
+                        class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-sky-500 focus:bg-white transition">
+                    <option value="">-- Selecione o produto --</option>
+                    {% for p in produtos %}
+                        <option value="{{ p.id }}" 
+                                data-estoque="{{ p.estoque_atual }}" 
+                                data-minimo="{{ p.estoque_minimo }}"
+                                data-unidade="{{ p.unidade_medida }}"
+                                data-preco="{{ p.preco_venda }}"
+                                {% if produto_id_selecionado and produto_id_selecionado|int == p.id %}selected{% endif %}>
+                            {{ p.nome }} [{{ p.categoria }}] &bull; Saldo: {{ p.estoque_atual }} {{ p.unidade_medida }} (Mín: {{ p.estoque_minimo }}) &bull; {{ p.preco_venda | moeda }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Painel Informativo Dinâmico do Produto Selecionado -->
+            <div id="painel-info-produto" class="hidden p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                    <div class="p-2 bg-white rounded-lg border border-slate-200/60 shadow-sm">
+                        <span class="text-[10px] uppercase font-bold text-slate-400 block">Estoque Disponível</span>
+                        <span id="info-estoque-atual" class="text-xl font-black text-slate-900">0</span>
+                        <span id="info-unidade-1" class="text-[10px] text-slate-500 font-bold ml-0.5 uppercase"></span>
+                    </div>
+
+                    <div class="p-2 bg-white rounded-lg border border-slate-200/60 shadow-sm">
+                        <span class="text-[10px] uppercase font-bold text-slate-400 block">Estoque Mínimo</span>
+                        <span id="info-estoque-minimo" class="text-xl font-black text-amber-600">0</span>
+                        <span id="info-unidade-2" class="text-[10px] text-slate-500 font-bold ml-0.5 uppercase"></span>
+                    </div>
+
+                    <div class="p-2 bg-white rounded-lg border border-slate-200/60 shadow-sm">
+                        <span class="text-[10px] uppercase font-bold text-slate-400 block">Preço Unitário</span>
+                        <span id="info-preco-unitario" class="text-xl font-black text-emerald-600">R$ 0,00</span>
+                    </div>
+
+                    <div class="p-2 bg-white rounded-lg border border-slate-200/60 shadow-sm">
+                        <span class="text-[10px] uppercase font-bold text-slate-400 block">Total da Venda</span>
+                        <span id="info-total-venda" class="text-xl font-black text-sky-600">R$ 0,00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quantidade e Motivo -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="quantidade" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                        Quantidade a Baixar <span class="text-rose-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                            <i class="fa-solid fa-calculator"></i>
+                        </span>
+                        <input type="number" min="1" id="quantidade" name="quantidade" required
+                               placeholder="Ex: 5"
+                               oninput="validarQuantidade(this.value)"
+                               class="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:bg-white transition">
+                    </div>
+                    <span id="aviso-quantidade" class="text-[11px] font-semibold mt-1 block"></span>
+                </div>
+
+                <div>
+                    <label for="motivo" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                        Motivo / Finalidade da Saída
+                    </label>
+                    <select id="motivo" name="motivo"
+                            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 transition">
+                        <option value="Venda Balcão Caixa">Venda Balcão / PDV</option>
+                        <option value="Consumo Interno">Consumo Interno do Estabelecimento</option>
+                        <option value="Transferência de Depósito">Transferência de Depósito</option>
+                        <option value="Ajuste de Inventário">Ajuste de Inventário Físico</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Alerta Preventivo de Reposição (RF08) -->
+            <div id="box-alerta-reposicao" class="hidden p-4 bg-amber-50 border border-amber-300 text-amber-900 rounded-xl text-xs">
+                <div class="flex items-center gap-2 font-bold text-amber-800">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-600 text-base"></i>
+                    <span>Aviso de Estoque Mínimo (RF08)</span>
+                </div>
+                <p class="mt-1 text-slate-700" id="texto-alerta-reposicao">
+                    Esta saída fará o saldo do produto ficar no nível de alerta de reposição.
+                </p>
+            </div>
+
+            <!-- Botões de Ação -->
+            <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+                <a href="{{ url_for('main.produtos') }}" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-xl transition">
+                    Cancelar
+                </a>
+                <button type="submit" id="btn-confirmar-saida" 
+                        class="px-6 py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold text-sm rounded-xl shadow-md shadow-sky-600/20 transition flex items-center gap-2">
+                    <i class="fa-solid fa-check-double"></i>
+                    <span>Confirmar Baixa com FEFO (RF06)</span>
+                </button>
+            </div>
+
+        </form>
+
+    </div>
+
+    <!-- BOX EXPLICATIVO: INTELIGÊNCIA FEFO NA APRESENTAÇÃO -->
+    <div class="bg-gradient-to-r from-slate-900 to-slate-950 text-slate-200 p-6 rounded-2xl border border-slate-800 shadow-md">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl flex-shrink-0">
+                <i class="fa-solid fa-brain"></i>
+            </div>
+            <div>
+                <h4 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                    Como o TexugoStock aplica o algoritmo FEFO (*First Expired, First Out*)?
+                </h4>
+                <p class="text-xs text-slate-300 mt-1.5 leading-relaxed">
+                    Em pequenos mercados e adegas, é comum que cheguem novos lotes de um produto enquanto ainda restam unidades do lote anterior. Se o operador pegar qualquer produto da prateleira sem critério, o lote antigo vence no depósito causando prejuízo financeiro.
+                </p>
+                <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div class="p-3 bg-slate-800/80 rounded-xl border border-slate-700">
+                        <span class="font-bold text-amber-400 block mb-1">✔ Prioridade aos mais antigos</span>
+                        O sistema baixa automaticamente as unidades dos lotes com vencimento mais próximo primeiro.
+                    </div>
+                    <div class="p-3 bg-slate-800/80 rounded-xl border border-slate-700">
+                        <span class="font-bold text-emerald-400 block mb-1">✔ Transição multi-lote</span>
+                        Se uma venda de 10 unidades precisar de 4 unidades do Lote A e 6 do Lote B, o TexugoStock faz a divisão perfeita no banco de dados.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let estoqueAtual = 0;
+    let estoqueMinimo = 0;
+    let precoUnitario = 0;
+    let unidadeMedida = 'UN';
+
+    function carregarInfoProduto(selectElem) {
+        const option = selectElem.options[selectElem.selectedIndex];
+        const painel = document.getElementById('painel-info-produto');
+
+        if (!option.value) {
+            painel.classList.add('hidden');
+            estoqueAtual = 0;
+            return;
+        }
+
+        estoqueAtual = parseInt(option.getAttribute('data-estoque') || 0);
+        estoqueMinimo = parseInt(option.getAttribute('data-minimo') || 0);
+        precoUnitario = parseFloat(option.getAttribute('data-preco') || 0);
+        unidadeMedida = option.getAttribute('data-unidade') || 'UN';
+
+        document.getElementById('info-estoque-atual').textContent = estoqueAtual;
+        document.getElementById('info-estoque-minimo').textContent = estoqueMinimo;
+        document.getElementById('info-unidade-1').textContent = unidadeMedida;
+        document.getElementById('info-unidade-2').textContent = unidadeMedida;
+        document.getElementById('info-preco-unitario').textContent = 'R$ ' + precoUnitario.toFixed(2).replace('.', ',');
+
+        painel.classList.remove('hidden');
+
+        // Revalida quantidade atual
+        const qtdInput = document.getElementById('quantidade');
+        if (qtdInput.value) {
+            validarQuantidade(qtdInput.value);
+        }
+    }
+
+    function validarQuantidade(qtdStr) {
+        const qtd = parseInt(qtdStr || 0);
+        const aviso = document.getElementById('aviso-quantidade');
+        const boxReposicao = document.getElementById('box-alerta-reposicao');
+        const textoReposicao = document.getElementById('texto-alerta-reposicao');
+        const btnSubmit = document.getElementById('btn-confirmar-saida');
+        const infoTotal = document.getElementById('info-total-venda');
+
+        // Atualiza total da venda
+        const total = (qtd > 0 ? qtd : 0) * precoUnitario;
+        infoTotal.textContent = 'R$ ' + total.toFixed(2).replace('.', ',');
+
+        if (qtd <= 0) {
+            aviso.textContent = 'Informe uma quantidade válida.';
+            aviso.className = 'text-[11px] text-slate-400 mt-1 block';
+            boxReposicao.classList.add('hidden');
+            btnSubmit.disabled = false;
+            return;
+        }
+
+        if (qtd > estoqueAtual) {
+            // Regra 10 do fluxo: "Se não houver estoque suficiente, informar o usuário e não concluir a baixa"
+            aviso.textContent = `❌ Quantidade solicitada (${qtd}) é maior que o saldo em estoque (${estoqueAtual} ${unidadeMedida})!`;
+            aviso.className = 'text-[11px] text-rose-600 font-bold mt-1 block';
+            btnSubmit.disabled = true;
+            btnSubmit.classList.add('opacity-50', 'cursor-not-allowed');
+            boxReposicao.classList.add('hidden');
+        } else {
+            btnSubmit.disabled = false;
+            btnSubmit.classList.remove('opacity-50', 'cursor-not-allowed');
+            const saldoAposSaida = estoqueAtual - qtd;
+            aviso.textContent = `✔ Saldo restante previsto após a saída: ${saldoAposSaida} ${unidadeMedida}`;
+            aviso.className = 'text-[11px] text-emerald-700 font-semibold mt-1 block';
+
+            // Regra 12 do fluxo: "Verificar se o saldo ficou abaixo do estoque mínimo e emitir alerta de reposição"
+            if (saldoAposSaida <= estoqueMinimo) {
+                boxReposicao.classList.remove('hidden');
+                textoReposicao.textContent = `Após esta saída, o saldo final de ${saldoAposSaida} ${unidadeMedida} atingirá o estoque mínimo configurado (${estoqueMinimo} ${unidadeMedida}). O sistema gerará um alerta de reposição imediato (RF08).`;
+            } else {
+                boxReposicao.classList.add('hidden');
+            }
+        }
+    }
+
+    // Inicializa na carga
+    window.addEventListener('DOMContentLoaded', () => {
+        const selectProd = document.getElementById('produto_id');
+        if (selectProd && selectProd.value) {
+            carregarInfoProduto(selectProd);
+        }
+    });
+</script>
+{% endblock %}
+

@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}{% if modo == 'novo' %}Novo Produto{% else %}Editar Produto{% endif %}{% endblock %}
+{% block header_title %}{% if modo == 'novo' %}Cadastrar Produto (RF01){% else %}Editar Produto: {{ produto.nome }}{% endif %}{% endblock %}
+{% block header_subtitle %}Preencha as informações obrigatórias para o controle de estoque (RNF03){% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 sm:p-8">
+        
+        <div class="flex items-center justify-between pb-4 mb-6 border-b border-slate-100">
+            <div>
+                <h3 class="text-lg font-bold text-slate-800">
+                    {% if modo == 'novo' %}
+                        <i class="fa-solid fa-plus-circle text-amber-500 mr-2"></i>Novo Cadastro de Produto
+                    {% else %}
+                        <i class="fa-solid fa-pen-to-square text-amber-500 mr-2"></i>Edição de Produto
+                    {% endif %}
+                </h3>
+                <p class="text-xs text-slate-500 mt-0.5">Campos marcados com <span class="text-rose-500 font-bold">*</span> são obrigatórios conforme RNF03.</p>
+            </div>
+            <a href="{{ url_for('main.produtos') }}" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition">
+                <i class="fa-solid fa-arrow-left mr-1"></i> Voltar ao Catálogo
+            </a>
+        </div>
+
+        <form method="POST" class="space-y-6">
+
+            <!-- Linha 1: Nome do Produto -->
+            <div>
+                <label for="nome" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                    Nome do Produto <span class="text-rose-500">*</span>
+                </label>
+                <input type="text" id="nome" name="nome" required
+                       value="{{ form.get('nome') or '' }}"
+                       placeholder="Ex: Leite Integral UHT 1L, Cerveja Puro Malte 350ml..."
+                       class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+            </div>
+
+            <!-- Linha 2: Categoria e Código de Barras -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="categoria" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                        Categoria <span class="text-rose-500">*</span>
+                    </label>
+                    <input type="text" id="categoria" name="categoria" list="categorias_lista" required
+                           value="{{ form.get('categoria') or '' }}"
+                           placeholder="Ex: Laticínios, Bebidas, Mercearia..."
+                           class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+                    <datalist id="categorias_lista">
+                        <option value="Laticínios">
+                        <option value="Bebidas / Adega">
+                        <option value="Mercearia">
+                        <option value="Frios e Queijos">
+                        <option value="Padaria">
+                        <option value="Hortifruti">
+                        <option value="Doces e Biscoitos">
+                        <option value="Higiene e Limpeza">
+                    </datalist>
+                </div>
+
+                <div>
+                    <label for="codigo_barras" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                        Código de Barras (EAN / SKU)
+                    </label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                            <i class="fa-solid fa-barcode"></i>
+                        </span>
+                        <input type="text" id="codigo_barras" name="codigo_barras"
+                               value="{{ form.get('codigo_barras') or '' }}"
+                               placeholder="Ex: 7891000100101 (opcional)"
+                               class="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Linha 3: Unidade de Medida, Estoque Mínimo -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="unidade_medida" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                        Unidade de Medida
+                    </label>
+                    <select id="unidade_medida" name="unidade_medida"
+                            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 transition">
+                        {% set un_atual = form.get('unidade_medida') or 'UN' %}
+                        <option value="UN" {% if un_atual == 'UN' %}selected{% endif %}>UN — Unidade</option>
+                        <option value="PCT" {% if un_atual == 'PCT' %}selected{% endif %}>PCT — Pacote</option>
+                        <option value="CX" {% if un_atual == 'CX' %}selected{% endif %}>CX — Caixa / Fardo</option>
+                        <option value="GFA" {% if un_atual == 'GFA' %}selected{% endif %}>GFA — Garrafa</option>
+                        <option value="LATA" {% if un_atual == 'LATA' %}selected{% endif %}>LATA — Lata</option>
+                        <option value="KG" {% if un_atual == 'KG' %}selected{% endif %}>KG — Quilograma</option>
+                        <option value="LT" {% if un_atual == 'LT' %}selected{% endif %}>LT — Litro</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="estoque_minimo" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                        Estoque Mínimo (Alerta de Reposição - RF08) <span class="text-rose-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-amber-500">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </span>
+                        <input type="number" id="estoque_minimo" name="estoque_minimo" required min="0"
+                               value="{{ form.get('estoque_minimo') if form.get('estoque_minimo') is not none else '5' }}"
+                               placeholder="5"
+                               class="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+                    </div>
+                    <span class="text-[11px] text-slate-400 mt-1 block">O sistema alertará quando o saldo for igual ou menor a esse valor.</span>
+                </div>
+            </div>
+
+            <!-- Linha 4: Preço de Custo e Preço de Venda -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="preco_custo" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                        Preço de Custo (R$)
+                    </label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 text-xs font-bold">
+                            R$
+                        </span>
+                        <input type="number" step="0.01" min="0" id="preco_custo" name="preco_custo"
+                               value="{{ form.get('preco_custo') or '0.00' }}"
+                               class="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+                    </div>
+                </div>
+
+                <div>
+                    <label for="preco_venda" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                        Preço de Venda (R$)
+                    </label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 text-xs font-bold">
+                            R$
+                        </span>
+                        <input type="number" step="0.01" min="0" id="preco_venda" name="preco_venda"
+                               value="{{ form.get('preco_venda') or '0.00' }}"
+                               class="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-emerald-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Linha 5: Descrição / Observações -->
+            <div>
+                <label for="descricao" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                    Descrição ou Observações do Produto
+                </label>
+                <textarea id="descricao" name="descricao" rows="3"
+                          placeholder="Detalhes adicionais, marca, localização no depósito..."
+                          class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">{{ form.get('descricao') or '' }}</textarea>
+            </div>
+
+            <!-- Botões de Ação -->
+            <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+                <a href="{{ url_for('main.produtos') }}" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-xl transition">
+                    Cancelar
+                </a>
+                <button type="submit" class="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-sm rounded-xl shadow-md shadow-amber-500/20 transition flex items-center gap-2">
+                    <i class="fa-solid fa-floppy-disk"></i>
+                    <span>{% if modo == 'novo' %}Salvar e Prosseguir{% else %}Atualizar Informações{% endif %}</span>
+                </button>
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+{% endblock %}
+

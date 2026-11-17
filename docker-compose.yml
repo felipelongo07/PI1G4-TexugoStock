@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  texugostock:
+    build: .
+    container_name: texugostock_app
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - SECRET_KEY=texugostock-chave-producao-segura-2026
+    volumes:
+      # Mantém persistência dos dados caso o container seja recriado
+      - ./instance:/app/instance
+
